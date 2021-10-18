@@ -12,6 +12,18 @@ import UIKit
 
 let MEMBER_LIST_URL = "https://my.api.mockaroo.com/members_with_avatar.json?key=44ce18f0"
 
+//class 나중에생기는데이터<T> {
+//    private let task: (@escaping (T) -> Void) -> Void
+//    
+//    init(task: @escaping (@escaping (T) -> Void) -> Void) {
+//        self.task = task
+//    }
+//    
+//    func 나중에오면(_ f: @escaping (T) -> Void) {
+//        task(f)
+//    }
+//}
+
 class ViewController: UIViewController {
     @IBOutlet var timerLabel: UILabel!
     @IBOutlet var editView: UITextView!
@@ -32,19 +44,42 @@ class ViewController: UIViewController {
         })
     }
 
+    func downloadJson(_ url:String) -> Observable<String?> {
+        return Observable.create { f in
+            DispatchQueue.global().async {
+                let url = URL(string: MEMBER_LIST_URL)!
+                let data = try! Data(contentsOf: url)
+                let json = String(data: data, encoding: .utf8)
+               
+                DispatchQueue.main.async {
+                    f.onNext(json)
+                }
+            }
+            
+            return Disposables.create()
+        }
+    }
+    
     // MARK: SYNC
 
     @IBOutlet var activityIndicator: UIActivityIndicatorView!
 
     @IBAction func onLoad() {
         editView.text = ""
-        setVisibleWithAnimation(activityIndicator, true)
-
-        let url = URL(string: MEMBER_LIST_URL)!
-        let data = try! Data(contentsOf: url)
-        let json = String(data: data, encoding: .utf8)
-        self.editView.text = json
+        self.setVisibleWithAnimation(self.activityIndicator, true)
         
-        self.setVisibleWithAnimation(self.activityIndicator, false)
+        downloadJson(MEMBER_LIST_URL)
+            .subscribe { event in
+                switch event {
+                case let .next(json) :
+                    self.editView.text = json
+                    self.setVisibleWithAnimation(self.activityIndicator, false)
+                
+                case .completed:
+                    break
+                case .error(_):
+                    break
+                }
+            }
     }
 }
